@@ -17,7 +17,6 @@
       # get 3 parameters boolean-flag default-value true-value
       addByFlag = self.outputs.lib.addByFlag;
 
-
       # 仅仅需要修改语言配置, 如果需要更多 pkgs . 修改对应modules下的nix文件
       need_language = [
         "c"
@@ -44,8 +43,16 @@
         inherit system;
         overlays = final-overlays;
       };
-      c = addByFlag useC [ ] (import ./modules/c.nix { inherit pkgs; });
-      rust = addByFlag useRust [ ] (import ./modules/rust.nix { inherit pkgs; });
+      pkgs_c = addByFlag useC [ ] (import ./modules/c.nix { inherit pkgs; });
+      env_c = addByFlag useC { } {
+        # 暂无
+      };
+
+      pkgs_rust = addByFlag useRust [ ] (import ./modules/rust.nix { inherit pkgs; });
+      env__rust = addByFlag useC { } {
+        # Required by rust-analyzer
+        RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+      };
 
     in
     {
@@ -79,9 +86,9 @@
         };
 
       devShells."${system}".default = pkgs.mkShell {
-        packages =
-          [ ] ++ c ++ rust
-        ;
+        packages = [ ] ++ pkgs_c ++ pkgs_rust;
+
+        env = { } // env__rust // env_c;
       };
     };
 }
