@@ -1,4 +1,6 @@
-{pkgs} : with pkgs; [
+{ pkgs, ... }:
+with pkgs;
+[
   rustToolchain
   cargo-deny
   cargo-edit

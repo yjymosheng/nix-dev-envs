@@ -1,5 +1,6 @@
-{pkgs}:
-  with pkgs; [
-    gnumake
-    libgcc
-   ]  
+{ pkgs, ... }:
+with pkgs;
+[
+  gnumake
+  libgcc
+]

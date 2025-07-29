@@ -19,25 +19,25 @@
 
       # 仅仅需要修改语言配置, 如果需要更多 pkgs . 修改对应modules下的nix文件
       need_language = [
-        "c"
-        "rust"
+        # "c"
+        # "rust"
+        "haskell"
       ];
       system = "x86_64-linux";
 
       useC = builtins.elem "c" need_language;
       useRust = builtins.elem "rust" need_language;
+      useHaskell = builtins.elem "haskell" need_language;
 
-      final-overlays =
-        [ ]
-        ++ (addByFlag useRust
+      overlayRust =
+        addByFlag useRust
           [ ]
           [
             inputs.rust-overlay.overlays.default
-            self.overlays.default
-          ]
-        )
+            self.overlays.rust
+          ];
 
-      ;
+      final-overlays = [ ] ++ overlayRust;
 
       pkgs = import nixpkgs {
         inherit system;
@@ -54,6 +54,11 @@
         RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
       };
 
+      pkgs_haskell = addByFlag useHaskell [ ] (import ./modules/haskell.nix { inherit pkgs; });
+      env_haskell = addByFlag useHaskell { } {
+        # 暂无
+      };
+
     in
     {
 
@@ -63,32 +68,34 @@
           if flag then value else default;
       };
 
-      overlays.default =
-        final: prev:
+      overlays = {
+        rust =
+          final: prev:
 
-        self.outputs.lib.addByFlag useRust { } {
+          self.outputs.lib.addByFlag useRust { } {
 
-          rustToolchain =
-            let
-              rust = prev.rust-bin;
-            in
-            if builtins.pathExists ./rust-toolchain.toml then
-              rust.fromRustupToolchainFile ./rust-toolchain.toml
-            else if builtins.pathExists ./rust-toolchain then
-              rust.fromRustupToolchainFile ./rust-toolchain
-            else
-              rust.stable.latest.default.override {
-                extensions = [
-                  "rust-src"
-                  "rustfmt"
-                ];
-              };
-        };
+            rustToolchain =
+              let
+                rust = prev.rust-bin;
+              in
+              if builtins.pathExists ./rust-toolchain.toml then
+                rust.fromRustupToolchainFile ./rust-toolchain.toml
+              else if builtins.pathExists ./rust-toolchain then
+                rust.fromRustupToolchainFile ./rust-toolchain
+              else
+                rust.stable.latest.default.override {
+                  extensions = [
+                    "rust-src"
+                    "rustfmt"
+                  ];
+                };
+          };
+      };
 
       devShells."${system}".default = pkgs.mkShell {
-        packages = [ ] ++ pkgs_c ++ pkgs_rust;
+        packages = [ ] ++ pkgs_c ++ pkgs_rust ++ pkgs_haskell;
 
-        env = { } // env__rust // env_c;
+        env = { } // env__rust // env_c // env_haskell;
       };
     };
 }
