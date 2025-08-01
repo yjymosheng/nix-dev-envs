@@ -59,6 +59,13 @@
         # 暂无
       };
 
+      # 解析 临时 path 路径
+      # 相对路径写法: 相对于 flake.nix 所在目录开始写
+      # 绝对路径写法: 直接写
+      shell_path = [
+        "coding/scripts"
+      ];
+
     in
     {
 
@@ -96,6 +103,11 @@
         packages = [ ] ++ pkgs_c ++ pkgs_rust ++ pkgs_haskell;
 
         env = { } // env__rust // env_c // env_haskell;
+
+        # 拼接 path 路径
+        shellHook = ''
+          ${builtins.concatStringsSep "\n" (builtins.map (p: "export PATH=$PWD/${p}:$PATH") shell_path)}
+        '';
       };
     };
 }
