@@ -49,7 +49,7 @@
       };
 
       pkgs_rust = addByFlag useRust [ ] (import ./modules/rust.nix { inherit pkgs; });
-      env__rust = addByFlag useC { } {
+      env__rust = addByFlag useRust { } {
         # Required by rust-analyzer
         RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
       };
