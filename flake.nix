@@ -63,7 +63,7 @@
       # 相对路径写法: 相对于 flake.nix 所在目录开始写
       # 绝对路径写法: 直接写
       shell_path = [
-        "coding/scripts"
+        # "coding/scripts"
       ];
 
     in
