@@ -22,12 +22,14 @@
         # "c"
         # "rust"
         "haskell"
+        "nodejs"
       ];
       system = "x86_64-linux";
 
       useC = builtins.elem "c" need_language;
       useRust = builtins.elem "rust" need_language;
       useHaskell = builtins.elem "haskell" need_language;
+      useNodejs = builtins.elem "nodejs" need_language;
 
       overlayRust =
         addByFlag useRust
@@ -56,6 +58,11 @@
 
       pkgs_haskell = addByFlag useHaskell [ ] (import ./modules/haskell.nix { inherit pkgs; });
       env_haskell = addByFlag useHaskell { } {
+        # 暂无
+      };
+
+      pkgs_nodejs = addByFlag useNodejs [ ] (import ./modules/nodejs.nix { inherit pkgs; });
+      env_nodejs = addByFlag useNodejs { } {
         # 暂无
       };
 
@@ -100,9 +107,9 @@
       };
 
       devShells."${system}".default = pkgs.mkShell {
-        packages = [ ] ++ pkgs_c ++ pkgs_rust ++ pkgs_haskell;
+        packages = [ ] ++ pkgs_c ++ pkgs_rust ++ pkgs_haskell ++ pkgs_nodejs;
 
-        env = { } // env__rust // env_c // env_haskell;
+        env = { } // env__rust // env_c // env_haskell // env_nodejs;
 
         # 拼接 path 路径
         shellHook = ''
