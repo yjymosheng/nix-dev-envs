@@ -7,113 +7,96 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # language-modules.url = "path:./language_modules";
+
   };
 
   outputs =
-    { self, nixpkgs, ... }@inputs:
+    {
+      self,
+      nixpkgs,
+      ...
+    }@inputs:
     let
+      language_modules_dir = ./language_modules;
 
-      # help function
-      # get 3 parameters boolean-flag default-value true-value
-      addByFlag = self.outputs.lib.addByFlag;
-
-      # 仅仅需要修改语言配置, 如果需要更多 pkgs . 修改对应modules下的nix文件
+      # 如果添加新的语言 overlay
+      # 在下面添加 xx-overlay.overlays.default
+      input_overlays = [
+        inputs.rust-overlay.overlays.default
+      ];
+      # 仅仅需要修改语言配置, 如果需要更多 pkgs .
+      # 添加 底部 packages
+      # 或者 修改对应modules下的nix文件
       need_language = [
         # "c"
         # "rust"
-        "haskell"
-        "nodejs"
+        # "haskell"
+        # "nodejs"
       ];
+
+      foldFns = {
+        packages = {
+          init = [ ];
+          fn = acc: elem: acc ++ elem;
+        };
+        env = {
+          init = { };
+          fn = acc: elem: acc // elem;
+        };
+        path = {
+          init = [ ];
+          fn = acc: elem: acc ++ elem;
+        };
+        overlay = {
+          init = [ ];
+          fn = acc: elem: acc ++ [ elem ];
+        };
+      };
+
       system = "x86_64-linux";
 
-      useC = builtins.elem "c" need_language;
-      useRust = builtins.elem "rust" need_language;
-      useHaskell = builtins.elem "haskell" need_language;
-      useNodejs = builtins.elem "nodejs" need_language;
-
-      overlayRust =
-        addByFlag useRust
-          [ ]
-          [
-            inputs.rust-overlay.overlays.default
-            self.overlays.rust
-          ];
-
-      final-overlays = [ ] ++ overlayRust;
+      final-overlays = input_overlays ++ self.outputs.lib.collectOption "overlay";
 
       pkgs = import nixpkgs {
         inherit system;
         overlays = final-overlays;
       };
-      pkgs_c = addByFlag useC [ ] (import ./modules/c.nix { inherit pkgs; });
-      env_c = addByFlag useC { } {
-        # 暂无
-      };
-
-      pkgs_rust = addByFlag useRust [ ] (import ./modules/rust.nix { inherit pkgs; });
-      env__rust = addByFlag useRust { } {
-        # Required by rust-analyzer
-        RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
-      };
-
-      pkgs_haskell = addByFlag useHaskell [ ] (import ./modules/haskell.nix { inherit pkgs; });
-      env_haskell = addByFlag useHaskell { } {
-        # 暂无
-      };
-
-      pkgs_nodejs = addByFlag useNodejs [ ] (import ./modules/nodejs.nix { inherit pkgs; });
-      env_nodejs = addByFlag useNodejs { } {
-        # 暂无
-      };
 
       # 解析 临时 path 路径
-      # 相对路径写法: 相对于 flake.nix 所在目录开始写
+      # 相对路径写法: 相对于 本flake.nix 所在目录开始写
       # 绝对路径写法: 直接写
       shell_path = [
-        # "coding/scripts"
-      ];
+        # "/home/mosheng/.cargo"
+      ] ++ self.outputs.lib.collectOption "path";
 
     in
     {
 
       lib = {
-        addByFlag =
-          flag: default: value:
-          if flag then value else default;
-      };
+        # getAttribute = need_languages: builtins.map ( )  need_langages;
+        _getAttribute =
+          foldFns: get_option: language_list: language_modules_dir:
+          let
+            import_file = builtins.map (x: "${language_modules_dir}/${x}.nix") language_list;
+            import_result = builtins.map (x: x { inherit pkgs; }) (builtins.map import import_file);
+            fold_elements = builtins.map (x: x.${get_option}) import_result;
+            fold_function = foldFns.${get_option};
+          in
+          builtins.foldl' fold_function.fn fold_function.init fold_elements;
 
-      overlays = {
-        rust =
-          final: prev:
-
-          self.outputs.lib.addByFlag useRust { } {
-
-            rustToolchain =
-              let
-                rust = prev.rust-bin;
-              in
-              if builtins.pathExists ./rust-toolchain.toml then
-                rust.fromRustupToolchainFile ./rust-toolchain.toml
-              else if builtins.pathExists ./rust-toolchain then
-                rust.fromRustupToolchainFile ./rust-toolchain
-              else
-                rust.stable.latest.default.override {
-                  extensions = [
-                    "rust-src"
-                    "rustfmt"
-                  ];
-                };
-          };
+        collectOption =
+          get_option: self.outputs.lib._getAttribute foldFns get_option need_language language_modules_dir;
       };
 
       devShells."${system}".default = pkgs.mkShell {
-        packages = [ ] ++ pkgs_c ++ pkgs_rust ++ pkgs_haskell ++ pkgs_nodejs;
+        packages = [ ] ++ self.outputs.lib.collectOption "packages";
 
-        env = { } // env__rust // env_c // env_haskell // env_nodejs;
+        env = { } // self.outputs.lib.collectOption "env";
 
         # 拼接 path 路径
         shellHook = ''
-          ${builtins.concatStringsSep "\n" (builtins.map (p: "export PATH=$PWD/${p}:$PATH") shell_path)}
+          export PATH="${builtins.concatStringsSep ":" shell_path}:$PATH"
         '';
       };
     };
