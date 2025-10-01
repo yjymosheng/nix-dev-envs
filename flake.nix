@@ -20,20 +20,24 @@
     let
       language_modules_dir = ./language_modules;
 
-      # 如果添加新的语言 overlay
-      # 在下面添加 xx-overlay.overlays.default
-      input_overlays = [
-        inputs.rust-overlay.overlays.default
-      ];
-      # 仅仅需要修改语言配置, 如果需要更多 pkgs .
-      # 添加 底部 packages
-      # 或者 修改对应modules下的nix文件
       need_language = [
         # "c"
         # "rust"
         # "haskell"
         # "nodejs"
       ];
+      # 如果添加新的语言 overlay
+      # 在下面添加 xx-overlay.overlays.default
+      # 语言 overlay 映射表
+      languageOverlays = {
+        rust = inputs.rust-overlay.overlays.default;
+      };
+
+      # 根据 need_language 生成 overlays
+      input_overlays = builtins.map (lang: languageOverlays.${lang}) need_language;
+      # 仅仅需要修改语言配置, 如果需要更多 pkgs .
+      # 添加 底部 packages
+      # 或者 修改对应modules下的nix文件
 
       foldFns = {
         packages = {
