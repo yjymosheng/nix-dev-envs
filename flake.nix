@@ -34,7 +34,9 @@
       };
 
       # 根据 need_language 生成 overlays
-      input_overlays = builtins.map (lang: languageOverlays.${lang}) need_language;
+      input_overlays = builtins.map (lang: languageOverlays.${lang}) (
+        builtins.filter (lang: builtins.hasAttr lang languageOverlays) need_language
+      );
       # 仅仅需要修改语言配置, 如果需要更多 pkgs .
       # 添加 底部 packages
       # 或者 修改对应modules下的nix文件
